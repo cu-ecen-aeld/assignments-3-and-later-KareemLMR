@@ -1,5 +1,12 @@
 #include "systemcalls.h"
-
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <stdint.h>
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -16,7 +23,11 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-
+    int returnCode = system(cmd);
+    if (returnCode != 0)
+    {
+	return false;
+    }
     return true;
 }
 
@@ -58,6 +69,47 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    int status;
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+        perror("Failed to fork a child process!");
+        return false;
+    }
+    if (!pid)
+    {
+	//printf("Exectuing execv\n");
+        int exitCode = execv(command[0], command);
+	//printf("exitCode returned = %d\n", exitCode);
+        if (exitCode == -1)
+        {
+                //printf("Execution of command failed!\n");
+                exit(255);
+        }
+        else
+        {
+                //printf("Execution of command success\n");
+                exit(0);
+        }
+
+    }
+    if (waitpid (pid, &status, 0) == -1)
+    {
+        perror("Failed to wait for child!");
+        return false;
+    }
+    if (!WIFEXITED(status))
+    {
+        perror("Failed to get exit code!");
+    }
+    else
+    {
+	//printf("status of %s %s %s = %d\n", command[0], command[1], command[2], WEXITSTATUS(status));
+        if (WEXITSTATUS(status) != 0)
+        {
+                return false;
+        }
+    }
 
     va_end(args);
 
@@ -92,6 +144,60 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    dup2(fd, 1);
+    //freopen(outputfile, "a+", stdout);
+    int status;
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+	//write(fd, "Failed to fork a child process!", strlen("Failed to fork a child process!"));
+	printf("Failed to fork a child process!\n");
+        //close(fd);
+	return false;
+    }
+    if (!pid)
+    {
+	//printf("Executing execv()\n");
+        int exitCode = execv(command[0], command);
+	//printf("exitCode returned = %d\n", exitCode);
+        if (exitCode == -1)
+	{
+		//write(fd, "Execution of command failed!", strlen("Execution of command failed!"));
+		printf("Execution of command failed!\n");
+                exit(255);
+	}
+	else
+	{
+		//write(fd, "Execution of command success", strlen("Execution of command success"));
+		printf("Execution of command success\n");
+		exit(0);
+	}
+    }
+    if (waitpid (pid, &status, 0) == -1)
+    {
+	//write(fd, "Failed to wait for child!", strlen("Failed to wait for child!"));
+	printf("Failed to wait for child!\n");
+	//close(fd);
+	return false;
+    }
+    if (!WIFEXITED(status))
+    {
+	//write(fd, "Failed to get exit code!", strlen("Failed to get exit code!"));
+	printf("Failed to get exit code!\n");
+        //close(fd);
+	return false;
+    }
+    else
+    {
+	//printf("status of %s %s %s = %d\n", command[0], command[1], command[2], WEXITSTATUS(status));
+	if (WEXITSTATUS(status) != 0)
+	{
+		return false;
+		//close(fd);
+	}
+    }
+    //close(fd);
 
     va_end(args);
 
