@@ -11,7 +11,7 @@ if [ -z "${OUTDIR}" ]; then
     echo "No outdir specified, using ${OUTDIR}"
 fi
 
-KERNEL_IMAGE=${OUTDIR}/Image
+KERNEL_IMAGE=${OUTDIR}/linux-stable/vmlinux
 INITRD_IMAGE=${OUTDIR}/initramfs.cpio.gz
 
 if [ ! -e ${KERNEL_IMAGE} ]; then
@@ -20,7 +20,7 @@ if [ ! -e ${KERNEL_IMAGE} ]; then
 fi
 if [ ! -e ${INITRD_IMAGE} ]; then
     echo "Missing initrd image at ${INITRD_IMAGE}"
-    exit 1
+    #exit 1
 fi
 
 

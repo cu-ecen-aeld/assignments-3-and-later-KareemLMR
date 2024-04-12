@@ -35,6 +35,9 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     git checkout ${KERNEL_VERSION}
 
     # TODO: Add your kernel build steps here
+    git apply ${FINDER_APP_DIR}/yylloc-issue-fix.patch
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
+    make -j4 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu-
 fi
 
 echo "Adding the Image in outdir"
