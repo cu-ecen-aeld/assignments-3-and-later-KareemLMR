@@ -5,13 +5,14 @@
 set -e
 
 OUTDIR=$1
+FINDER_APP_DIR=$(realpath $(dirname $0))
 
 if [ -z "${OUTDIR}" ]; then
     OUTDIR=/tmp/aeld
     echo "No outdir specified, using ${OUTDIR}"
 fi
 
-KERNEL_IMAGE=${OUTDIR}/linux-stable/vmlinux
+KERNEL_IMAGE=${OUTDIR}/Image
 INITRD_IMAGE=${OUTDIR}/initramfs.cpio.gz
 
 if [ ! -e ${KERNEL_IMAGE} ]; then
@@ -25,6 +26,7 @@ fi
 
 
 echo "Booting the kernel"
+export PATH=$PATH:${FINDER_APP_DIR}/../qemu/build
 # See trick at https://superuser.com/a/1412150 to route serial port output to file
 qemu-system-aarch64 \
         -m 256M \
