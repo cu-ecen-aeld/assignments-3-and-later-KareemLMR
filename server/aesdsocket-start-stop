@@ -1,0 +1,48 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          example-service
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Example service
+# Description:       This is an example init script for a service.
+### END INIT INFO
+
+# Change these variables to match your configuration
+SERVICE_NAME="aesdsocket-service"
+SERVICE_PATH="/usr/bin/aesdsocket"
+SERVICE_PID_FILE="/var/run/$SERVICE_NAME.pid"
+# Function to start the service
+start() {
+    echo "Starting $SERVICE_NAME..."
+    start-stop-daemon --start --oknodo --startas ${SERVICE_PATH} -- -d --pidfile ${SERVICE_PID_FILE}
+    echo "$SERVICE_NAME started successfully."
+}
+
+# Function to stop the service
+stop() {
+    echo "Stopping $SERVICE_NAME..."
+    start-stop-daemon --stop --oknodo --pidfile ${SERVICE_PID_FILE}
+    echo "$SERVICE_NAME stopped successfully." 
+}
+
+# Script execution starts here
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+
+exit 0
