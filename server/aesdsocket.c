@@ -12,63 +12,75 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <sys/queue.h>
+
 #define MAX_SESSIONS 1000
+
 pthread_mutex_t readMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t writeMutex = PTHREAD_MUTEX_INITIALIZER;
 const char* outputFile = "/var/tmp/aesdsocketdata";
 int totalBuffSize = 0;
 bool sigint = false;
 bool sigterm = false;
+
+typedef struct handler
+{
+    pthread_t thread;
+    int connfd;
+    bool done;
+    SLIST_ENTRY(handler) entries;
+
+}handler_t;
+
 void sigint_handler(int sig)
 {
-    printf("SIGINT received. Exiting...\n");
+    //printf("SIGINT received. Exiting...\n");
     sigint = true;
 }
 void sigterm_handler(int sig)
 {
-    printf("SIGTERM received. Exiting...\n");
+    //printf("SIGTERM received. Exiting...\n");
     sigterm = true;
 }
-void* handleClient(void* connfd)
+void* handleClient(void* connData)
 {
-    //printf("handling client.. \n");
-    //int failedToLock = pthread_mutex_lock(&readMutex);
-    // if (failedToLock)
-    // {
-    //     //printf("Failed to lock mutex \n");
-    // }
-    // else
-    // {
-    //     //printf("mutex locked successfully\n");
-    // }
-    char* recvBuff;
+    handler_t* threadConnData = (handler_t *) connData;
+    //printf("Handling client\n");
+    char* recvBuff = NULL;
     recvBuff = (char*)malloc(sizeof(char));
-    int n = recv(*((int*)connfd), recvBuff, 1, 0);
+    if (recvBuff == NULL)
+    {
+        //printf("unable to allocate memory\n");
+        exit(0);
+    }
+    //printf("recvBuff allocated\n");
+    int n = recv(threadConnData->connfd, recvBuff, 1, 0);
+    //printf("recv called\n");
     if (n == -1)
     {
         perror("recv");
 
         if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
-            //printf("Socket would block\n");
+            ////printf("Socket would block\n");
         }
         else if (errno == ECONNRESET)
         {
-            //printf("Connection reset by peer\n");
+            ////printf("Connection reset by peer\n");
         } 
         else 
         {
-            //printf("Error: %s\n", strerror(errno));
+            ////printf("Error: %s\n", strerror(errno));
         }
-        close(*((int*)connfd));
+        close(threadConnData->connfd);
         exit(0);
     }
     int incremental = 0;
     //printf("Received %d Byte(s) of value %c on %d \n", n, recvBuff[incremental], *((int*)connfd));
     while (recvBuff[incremental] != '\n')
     {
-        recvBuff = (char*)realloc(recvBuff, (++incremental) * sizeof(char));
-        n = recv(*((int*)connfd), (recvBuff + incremental), 1, 0);
+        recvBuff = (char*)realloc(recvBuff, (++incremental + 1) * sizeof(char));
+        n = recv(threadConnData->connfd, (recvBuff + incremental), 1, 0);
         //printf("Received %d Byte(s) of value %c on %d \n", n, recvBuff[incremental], *((int*)connfd));
         if (n == -1)
         {
@@ -86,17 +98,17 @@ void* handleClient(void* connfd)
             {
                 //printf("Error: %s\n", strerror(errno));
             }
-            close(*((int*)connfd));
+            close(threadConnData->connfd);
             exit(0);
         }
         else if (n == 0)
         {
-            close(*((int*)connfd));
+            close(threadConnData->connfd);
             //printf("Client closed connection\n");
             break;
         }
     }
-
+    //printf("Loop exited\n");
     //int failedToUnlock = pthread_mutex_unlock(&readMutex);
 
     int failedToLock = pthread_mutex_lock(&writeMutex);
@@ -106,6 +118,7 @@ void* handleClient(void* connfd)
     int fd = open(outputFile, O_RDWR|O_APPEND|O_CREAT, 0644);
     if (fd == -1)
     {
+        close(threadConnData->connfd);
         perror("open");
         exit(EXIT_FAILURE);
     }
@@ -113,6 +126,7 @@ void* handleClient(void* connfd)
     // Position the file pointer to the end of the file
     if (lseek(fd, 0, SEEK_END) == -1)
     {
+        close(threadConnData->connfd);
         perror("lseek");
         close(fd);
         exit(EXIT_FAILURE);
@@ -121,6 +135,7 @@ void* handleClient(void* connfd)
     // Write the received data to the file
     if (write(fd, recvBuff, incremental + 1) == -1)
     {
+        close(threadConnData->connfd);
         perror("write");
         close(fd);
         exit(EXIT_FAILURE);
@@ -129,6 +144,7 @@ void* handleClient(void* connfd)
     // Sync the file to disk
     if (fsync(fd) == -1)
     {
+        close(threadConnData->connfd);
         perror("fsync");
         close(fd);
         exit(EXIT_FAILURE);
@@ -137,6 +153,7 @@ void* handleClient(void* connfd)
     // Set the file offset to the beginning of the file
     if (lseek(fd, 0, SEEK_SET) == -1)
     {
+        close(threadConnData->connfd);
         perror("Error seeking to the beginning of file");
         exit(EXIT_FAILURE);
     }
@@ -145,22 +162,25 @@ void* handleClient(void* connfd)
     totalBuff = (char*)malloc(totalBuffSize * sizeof(char));
 
     int bytesRead = read(fd, totalBuff, totalBuffSize);
-    //printf("%d bytes read\n", bytesRead);
+    ////printf("%d bytes read\n", bytesRead);
 
-    int sent = send(*((int*)connfd), totalBuff, totalBuffSize, 0);
-    //printf("%d bytes sent\n", sent);
+    int sent = send(threadConnData->connfd, totalBuff, totalBuffSize, 0);
+    ////printf("%d bytes sent\n", sent);
 
     // Close the file
     if (close(fd) == -1)
     {
+        close(threadConnData->connfd);
         perror("close");
         exit(EXIT_FAILURE);
     }
-    //free(recvBuff);
-    //free(totalBuff);
-    close(*((int*)connfd));
+    free(recvBuff);
+    free(totalBuff);
+    close(threadConnData->connfd);
     int failedToUnlock = pthread_mutex_unlock(&writeMutex);
-    //exit(0);
+
+    threadConnData->done = true;
+
     return NULL;
 }
 int main(int argc, char** argv)
@@ -199,48 +219,12 @@ int main(int argc, char** argv)
     {
         if (!strcmp(argv[1], "-d"))
         {
-            //printf("Running in daemon mode...");
+            ////printf("Running in daemon mode...");
             pid = fork();
             if (pid > 0)
             {
                 exit(EXIT_SUCCESS);
             }
-            //Create a new session and detach from the terminal
-            // if (setsid() < 0)
-            // {
-            //     // Setsid failed
-            //     fprintf(stderr, "Setsid failed\n");
-            //     exit(EXIT_FAILURE);
-            // }
-
-            //Fork again to ensure the process is not a session leader
-            // pid = fork();
-
-            // if (pid < 0)
-            // {
-            //     // Fork failed
-            //     fprintf(stderr, "Second fork failed\n");
-            //     exit(EXIT_FAILURE);
-            // }
-
-            // // If we got a good PID, then we can exit the parent process
-            // if (pid > 0) {
-            //     // Exit the parent process
-            //     exit(EXIT_SUCCESS);
-            // }
-
-            // // Change the current working directory to root
-            // if (chdir("/") < 0)
-            // {
-            //     // chdir failed
-            //     fprintf(stderr, "chdir failed\n");
-            //     exit(EXIT_FAILURE);
-            // }
-
-            // // Close all open file descriptors
-            // for (int fd = sysconf(_SC_OPEN_MAX); fd >= 0; fd--) {
-            //     close(fd);
-            // }
         }
     }
 
@@ -265,27 +249,37 @@ int main(int argc, char** argv)
     }
 
     int activeConnections = 0;
+    SLIST_HEAD(headWorker, handler) workers = SLIST_HEAD_INITIALIZER(workers);
 
     while(!sigint && !sigterm)
     {
         listen(listenfd, 10);
-        //printf("Received a connection request \n");
-        connfd[activeConnections] = accept(listenfd, (struct sockaddr*)NULL, NULL);
+        ////printf("Received a connection request \n");
+        handler_t* newWorker;
+        newWorker = (handler_t*)malloc(sizeof(handler_t));
+        newWorker->done = false;
+        newWorker->connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
 
-        //printf("Accepted a connection request on %d, forking a thread... \n", connfd);
-        pthread_t thread;
-        int failedToCreateThread = pthread_create(&thread, NULL, handleClient, (void*) &connfd[activeConnections]);
+        SLIST_INSERT_HEAD(&workers, newWorker, entries);
+
+        ////printf("Accepted a connection request on %d, forking a thread... \n", connfd);
+        //pthread_t thread;
+        int failedToCreateThread = pthread_create(&(newWorker->thread), NULL, handleClient, (void*) newWorker);
         if (failedToCreateThread)
         {
-            //printf("Failed to create a thread... \n");
+            ////printf("Failed to create a thread... \n");
         }
-        if(activeConnections == MAX_SESSIONS - 1)
+        handler_t* currentWorker;
+        SLIST_FOREACH(currentWorker, &workers, entries)
         {
-            activeConnections = 0;
-        }
-        else
-        {
-            activeConnections++;
+            if (currentWorker->done)
+            {
+                //printf("Removing handler\n");
+                void *thread_result;
+                pthread_join(currentWorker->thread, &thread_result);
+                SLIST_REMOVE(&workers, currentWorker, handler, entries);
+            }
+            //printf("%d ", current_node->data);
         }
     }
     close(listenfd);
