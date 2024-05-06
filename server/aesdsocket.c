@@ -13,8 +13,8 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <sys/queue.h>
-
-#define MAX_SESSIONS 1000
+#include <sys/time.h>
+#include <time.h>
 
 pthread_mutex_t readMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t writeMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -41,6 +41,74 @@ void sigterm_handler(int sig)
 {
     //printf("SIGTERM received. Exiting...\n");
     sigterm = true;
+}
+
+void* updateTime(void*)
+{
+    while (!sigint && !sigterm)
+    {
+        sleep(10);
+        int failedToLock = pthread_mutex_lock(&writeMutex);
+
+        struct timespec current_time;
+        struct tm *local_time;
+        char outstr[200];
+        char timestamp[200] = "timestamp:";
+        // Get the current real-time clock
+        if (clock_gettime(CLOCK_REALTIME, &current_time) == -1)
+        {
+            perror("clock_gettime");
+            exit(EXIT_FAILURE);
+        }
+        local_time = localtime(&current_time.tv_sec);
+        if (local_time == NULL)
+        {
+            perror("localtime");
+            exit(EXIT_FAILURE);
+        }
+        if (strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", local_time) == 0)
+        {
+            fprintf(stderr, "strftime returned 0");
+            exit(EXIT_FAILURE);
+        }
+        strcat(outstr, "\n");
+        strcat(timestamp, outstr);
+        totalBuffSize += strlen(timestamp) + 1;
+
+        int fd = open(outputFile, O_RDWR|O_APPEND|O_CREAT, 0644);
+        if (fd == -1)
+        {
+            perror("open");
+            exit(EXIT_FAILURE);
+        }
+
+        // Position the file pointer to the end of the file
+        if (lseek(fd, 0, SEEK_END) == -1)
+        {
+            perror("lseek");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+
+        // Write the received data to the file
+        if (write(fd, timestamp, strlen(timestamp) + 1) == -1)
+        {
+            perror("write");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+
+        // Sync the file to disk
+        if (fsync(fd) == -1)
+        {
+            perror("fsync");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+
+        int failedToUnlock = pthread_mutex_unlock(&writeMutex);
+    }
+    return NULL;
 }
 void* handleClient(void* connData)
 {
@@ -187,7 +255,6 @@ int main(int argc, char** argv)
 {
     int reuseaddr = 1;
     int listenfd = 0;
-    int connfd[MAX_SESSIONS];
     struct sockaddr_in serv_addr;
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenfd == -1)
@@ -248,7 +315,10 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
-    int activeConnections = 0;
+    pthread_t timer;
+
+    int failedToCreateThread = pthread_create(&timer, NULL, updateTime, (void*) NULL);
+
     SLIST_HEAD(headWorker, handler) workers = SLIST_HEAD_INITIALIZER(workers);
 
     while(!sigint && !sigterm)
@@ -282,6 +352,7 @@ int main(int argc, char** argv)
             //printf("%d ", current_node->data);
         }
     }
+    remove(outputFile);
     close(listenfd);
     return 0;
 }
