@@ -305,22 +305,21 @@ int main(int argc, char** argv)
     sa_term.sa_flags = 0;
 
     // Register the signal handlers for SIGINT and SIGTERM
-    if (sigaction(SIGINT, &sa_int, NULL) == -1) {
+    if (sigaction(SIGINT, &sa_int, NULL) == -1)
+    {
         perror("sigaction");
         exit(EXIT_FAILURE);
     }
 
-    if (sigaction(SIGTERM, &sa_term, NULL) == -1) {
+    if (sigaction(SIGTERM, &sa_term, NULL) == -1)
+    {
         perror("sigaction");
         exit(EXIT_FAILURE);
     }
-
-    pthread_t timer;
-
-    int failedToCreateThread = pthread_create(&timer, NULL, updateTime, (void*) NULL);
 
     SLIST_HEAD(headWorker, handler) workers = SLIST_HEAD_INITIALIZER(workers);
 
+    bool timerStarted = false;
     while(!sigint && !sigterm)
     {
         listen(listenfd, 10);
@@ -334,6 +333,13 @@ int main(int argc, char** argv)
 
         ////printf("Accepted a connection request on %d, forking a thread... \n", connfd);
         //pthread_t thread;
+        if (!timerStarted)
+        {
+            pthread_t timer;
+            int failedToCreateThread = pthread_create(&timer, NULL, updateTime, (void*) NULL);
+            timerStarted = true;
+        }
+
         int failedToCreateThread = pthread_create(&(newWorker->thread), NULL, handleClient, (void*) newWorker);
         if (failedToCreateThread)
         {
