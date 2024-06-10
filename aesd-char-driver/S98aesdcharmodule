@@ -1,0 +1,44 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          modules-loader
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Load/Unoad AESD Char Kernel Module
+# Description:       This is an init script for loading/unloading ldd modules.
+### END INIT INFO
+
+# Function to start the service
+start() {
+    echo "Loading aesdchar module..."
+    /etc/init.d/aesdchar_load
+    echo "aesdchar loaded successfully."
+}
+
+# Function to stop the service
+stop() {
+    echo "Unloading aesdchar module..."
+    /etc/init.d/aesdchar_unload
+    echo "aesdchar module unloaded successfully."
+}
+
+# Script execution starts here
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+
+exit 0
