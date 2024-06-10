@@ -18,7 +18,13 @@
 
 pthread_mutex_t readMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t writeMutex = PTHREAD_MUTEX_INITIALIZER;
+
+#if USE_AESD_CHAR_DEVICE
+const char* outputFile = "/dev/aesdchar";
+#else
 const char* outputFile = "/var/tmp/aesdsocketdata";
+#endif
+
 int totalBuffSize = 0;
 bool sigint = false;
 bool sigterm = false;
@@ -333,12 +339,15 @@ int main(int argc, char** argv)
 
         ////printf("Accepted a connection request on %d, forking a thread... \n", connfd);
         //pthread_t thread;
+
+        #if !(USE_AESD_CHAR_DEVICE)
         if (!timerStarted)
         {
             pthread_t timer;
             int failedToCreateThread = pthread_create(&timer, NULL, updateTime, (void*) NULL);
             timerStarted = true;
         }
+        #endif
 
         int failedToCreateThread = pthread_create(&(newWorker->thread), NULL, handleClient, (void*) newWorker);
         if (failedToCreateThread)
@@ -358,7 +367,9 @@ int main(int argc, char** argv)
             //printf("%d ", current_node->data);
         }
     }
+    #if !(USE_AESD_CHAR_DEVICE)
     remove(outputFile);
+    #endif
     close(listenfd);
     return 0;
 }
