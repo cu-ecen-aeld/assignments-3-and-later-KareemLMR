@@ -88,13 +88,13 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 
         if (startPosition <= 0)
         {
-            if (level)
+            if (strlen(retBuff) == 0)
             {
-                strcat(retBuff, rtnentry->buffptr + (strlen(rtnentry->buffptr) - startPosition));
+                strcpy(retBuff, rtnentry->buffptr + (strlen(rtnentry->buffptr) + startPosition));
             }
             else
             {
-                strcpy(retBuff, rtnentry->buffptr + (strlen(rtnentry->buffptr) - startPosition));
+                strcat(retBuff, rtnentry->buffptr);
             }
         
             PDEBUG("concatenated string became: %s", retBuff);
