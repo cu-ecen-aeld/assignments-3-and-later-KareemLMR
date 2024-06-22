@@ -61,8 +61,11 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     size_t offset_rtn = 0;
     size_t prevSize = 0;
     size_t totalSize = 0;
-    char* retBuff = kmalloc(count * sizeof(char), GFP_KERNEL);
+    char* retBuff = kmalloc((count + 1) * sizeof(char), GFP_KERNEL);
+    retBuff = "";
     int level = 0;
+    int startPosition = *f_pos;
+
     for (level = 0 ; level < 10 ; level++)
     {
         PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
@@ -79,17 +82,30 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         }
         prevSize = rtnentry->size;
         totalSize += prevSize;
+        startPosition -= prevSize;
+
         PDEBUG("prevSize = %d, totalSize = %d, string = %s", prevSize, totalSize, rtnentry->buffptr);
-        if (level)
+
+        if (startPosition <= 0)
         {
-            strcat(retBuff, rtnentry->buffptr);
+            if (level)
+            {
+                strcat(retBuff, rtnentry->buffptr + (strlen(rtnentry->buffptr) - startPosition));
+            }
+            else
+            {
+                strcpy(retBuff, rtnentry->buffptr + (strlen(rtnentry->buffptr) - startPosition));
+            }
+        
+            PDEBUG("concatenated string became: %s", retBuff);
         }
-        else
+
+        if (strlen(retBuff) >= count)
         {
-            strcpy(retBuff, rtnentry->buffptr);
+            retBuff[count] = '\0';
+            break;
         }
         
-        PDEBUG("concatenated string became: %s", retBuff);
         //kfree(rtnentry);
     }
 
@@ -157,8 +173,36 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     kfree(newBuff);
     return retval;
 }
+
+loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
+{
+	struct scull_dev *dev = filp->private_data;
+	loff_t newpos;
+
+	switch(whence) {
+	  case 0: /* SEEK_SET */
+		newpos = off;
+		break;
+
+	  case 1: /* SEEK_CUR */
+		newpos = filp->f_pos + off;
+		break;
+
+	  case 2: /* SEEK_END */
+		newpos = dev->size + off;
+		break;
+
+	  default: /* can't happen */
+		return -EINVAL;
+	}
+	if (newpos < 0) return -EINVAL;
+	filp->f_pos = newpos;
+	return newpos;
+}
+
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
+    .llseek =   aesd_llseek,
     .read =     aesd_read,
     .write =    aesd_write,
     .open =     aesd_open,
