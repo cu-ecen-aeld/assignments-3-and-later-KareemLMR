@@ -102,6 +102,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 
         if (strlen(retBuff) >= count)
         {
+            PDEBUG("Exiting the loop");
             retBuff[count] = '\0';
             break;
         }
@@ -111,10 +112,12 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 
     if (copy_to_user(buf, retBuff, strlen(retBuff)))
     {
+        PDEBUG("Failed to copy");
 		retval = -EFAULT;
 	}
     else
     {
+        PDEBUG("Returning %d", retval);
         retval = strlen(retBuff);
         *f_pos -= count;
     }
