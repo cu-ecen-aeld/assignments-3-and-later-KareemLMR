@@ -62,7 +62,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     size_t prevSize = 0;
     size_t totalSize = 0;
     char* retBuff = kmalloc((count + 1) * sizeof(char), GFP_KERNEL);
-    retBuff = "";
+    strcpy(retBuff, "");
     int level = 0;
     int startPosition = *f_pos;
 
