@@ -65,7 +65,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     strcpy(retBuff, "");
     int level = 0;
     int startPosition = filp->f_pos;
-
+    PDEBUG("filp->f_pos = %d", filp->f_pos);
     for (level = 0 ; level < 10 ; level++)
     {
         PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
@@ -117,7 +117,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 	}
     else
     {
-        PDEBUG("Returning %d", retval);
+        PDEBUG("Returning %d, count %d", strlen(retBuff), count);
         retval = strlen(retBuff);
         *f_pos -= count;
     }
