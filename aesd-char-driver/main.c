@@ -84,7 +84,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         totalSize += prevSize;
         startPosition -= prevSize;
 
-        PDEBUG("prevSize = %d, totalSize = %d, string = %s", prevSize, totalSize, rtnentry->buffptr);
+        PDEBUG("prevSize = %d, totalSize = %d, string = %s, length of rtnentry->buffptr = %d, startPosition = %d", prevSize, totalSize, rtnentry->buffptr, strlen(rtnentry->buffptr), startPosition);
 
         if (startPosition <= 0)
         {
@@ -188,9 +188,9 @@ loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
 		newpos = filp->f_pos + off;
 		break;
 
-	  case 2: /* SEEK_END */
-		newpos = dev->size + off;
-		break;
+	//   case 2: /* SEEK_END */
+	// 	newpos = dev->size + off;
+	// 	break;
 
 	  default: /* can't happen */
 		return -EINVAL;
