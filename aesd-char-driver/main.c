@@ -120,6 +120,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         PDEBUG("Returning %d, count %d", strlen(retBuff), count);
         retval = strlen(retBuff);
         *f_pos -= count;
+        filp->f_pos = 0;
     }
     kfree(retBuff);
     return retval;
