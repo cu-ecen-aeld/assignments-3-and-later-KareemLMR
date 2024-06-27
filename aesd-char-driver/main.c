@@ -177,10 +177,10 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
-long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto arg)
+long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
 {
 
-	int err = 0, tmp;
+	int err = 0;
 	int retval = 0;
     
     struct aesd_dev *dev = filp->private_data;
@@ -197,22 +197,22 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto arg)
 	 * access_ok is kernel-oriented, so the concept of "read" and
 	 * "write" is reversed
 	 */
-	if (_IOC_DIR(cmd) & _IOC_READ)
-		err = !access_ok_wrapper(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
-	else if (_IOC_DIR(cmd) & _IOC_WRITE)
-		err =  !access_ok_wrapper(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
-	if (err) return -EFAULT;
+	// if (_IOC_DIR(cmd) & _IOC_READ)
+	// 	err = !access_ok_wrapper(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+	// else if (_IOC_DIR(cmd) & _IOC_WRITE)
+	// 	err =  !access_ok_wrapper(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+	// if (err) return -EFAULT;
 
     int level = 0;
     size_t offset_rtn = 0;
     size_t prevSize = 0;
     size_t totalSize = 0;
-    char* retBuff = kmalloc((count + 1) * sizeof(char), GFP_KERNEL);
+    char* retBuff = kmalloc(100 * sizeof(char), GFP_KERNEL);
 
 	switch(cmd) {
 
 	  case AESDCHAR_IOCSEEKTO:
-		for (level = 0 ; level < arg.write_cmd ; level++)
+		for (level = 0 ; level < arg->write_cmd ; level++)
         {
             //PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
             if (mutex_lock_interruptible(&dev->rw_lock))
@@ -228,12 +228,12 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto arg)
             }
             prevSize = rtnentry->size;
             totalSize += prevSize;
-            if (level == arg.write - 1)
+            if (level == arg->write_cmd - 1)
             {
                 strcpy(retBuff, rtnentry->buffptr);
             }
         }
-        retval = retBuff[arg.write_cmd_offset];
+        retval = retBuff[arg->write_cmd_offset];
 		break;
 
 	  default:  /* redundant, as cmd was checked against MAXNR */
@@ -274,7 +274,7 @@ struct file_operations aesd_fops = {
     .llseek =   aesd_llseek,
     .read =     aesd_read,
     .write =    aesd_write,
-    .unlocked_ioctl = aesd_ioctl,
+    .unlocked_ioctl = (long int (*)(struct file *, unsigned int, long unsigned int))aesd_ioctl,
     .open =     aesd_open,
     .release =  aesd_release,
 };
