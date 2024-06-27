@@ -207,7 +207,6 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     size_t offset_rtn = 0;
     size_t prevSize = 0;
     size_t totalSize = 0;
-    char* retBuff = kmalloc(100 * sizeof(char), GFP_KERNEL);
     struct aesd_seekto *seek_params;
 
 	switch(cmd) {
@@ -217,6 +216,10 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         if (copy_from_user(&seek_params, (struct aesd_seekto *)arg, sizeof(struct aesd_seekto)))
         {
             return -EFAULT; // Error handling if copy_from_user fails
+        }
+        if (seek_params->write_cmd > 9)
+        {
+            return -EINVAL;
         }
 		for (level = 0 ; level <= seek_params->write_cmd ; level++)
         {
@@ -233,13 +236,16 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
                 break;
             }
             prevSize = rtnentry->size;
-            totalSize += prevSize;
             if (level == seek_params->write_cmd)
             {
-                strcpy(retBuff, rtnentry->buffptr);
+                if (seek_params->write_cmd_offset >= prevSize)
+                {
+                    return -EINVAL;
+                }
+                filp->f_pos = totalSize + seek_params->write_cmd_offset;
             }
+            totalSize += prevSize;
         }
-        retval = retBuff[seek_params->write_cmd_offset];
 		break;
 
 	  default:  /* redundant, as cmd was checked against MAXNR */
