@@ -177,7 +177,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
-long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 
 	int err = 0;
@@ -208,11 +208,17 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
     size_t prevSize = 0;
     size_t totalSize = 0;
     char* retBuff = kmalloc(100 * sizeof(char), GFP_KERNEL);
+    struct aesd_seekto *seek_params;
 
 	switch(cmd) {
 
 	  case AESDCHAR_IOCSEEKTO:
-		for (level = 0 ; level < arg->write_cmd ; level++)
+
+        if (copy_from_user(&seek_params, (struct aesd_seekto *)arg, sizeof(struct aesd_seekto)))
+        {
+            return -EFAULT; // Error handling if copy_from_user fails
+        }
+		for (level = 0 ; level <= seek_params->write_cmd ; level++)
         {
             //PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
             if (mutex_lock_interruptible(&dev->rw_lock))
@@ -228,12 +234,12 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
             }
             prevSize = rtnentry->size;
             totalSize += prevSize;
-            if (level == arg->write_cmd - 1)
+            if (level == seek_params->write_cmd)
             {
                 strcpy(retBuff, rtnentry->buffptr);
             }
         }
-        retval = retBuff[arg->write_cmd_offset];
+        retval = retBuff[seek_params->write_cmd_offset];
 		break;
 
 	  default:  /* redundant, as cmd was checked against MAXNR */
@@ -274,7 +280,7 @@ struct file_operations aesd_fops = {
     .llseek =   aesd_llseek,
     .read =     aesd_read,
     .write =    aesd_write,
-    .unlocked_ioctl = (long int (*)(struct file *, unsigned int, long unsigned int))aesd_ioctl,
+    .unlocked_ioctl = aesd_ioctl,
     .open =     aesd_open,
     .release =  aesd_release,
 };
