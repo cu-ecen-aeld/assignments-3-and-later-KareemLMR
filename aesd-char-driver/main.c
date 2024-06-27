@@ -28,7 +28,7 @@ struct aesd_dev aesd_device;
 
 int aesd_open(struct inode *inode, struct file *filp)
 {
-    PDEBUG("open");
+    //PDEBUG("open");
     /**
      * TODO: handle open
      */
@@ -42,7 +42,7 @@ int aesd_open(struct inode *inode, struct file *filp)
 
 int aesd_release(struct inode *inode, struct file *filp)
 {
-    PDEBUG("release");
+    //PDEBUG("release");
     /**
      * TODO: handle release
      */
@@ -53,7 +53,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = 0;
-    PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
+    //PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     /**
      * TODO: handle read
      */
@@ -65,10 +65,10 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     strcpy(retBuff, "");
     int level = 0;
     int startPosition = filp->f_pos;
-    PDEBUG("filp->f_pos = %d", filp->f_pos);
+    //PDEBUG("filp->f_pos = %d", filp->f_pos);
     for (level = 0 ; level < 10 ; level++)
     {
-        PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
+        //PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
         if (mutex_lock_interruptible(&dev->rw_lock))
         {
             return -ERESTARTSYS;
@@ -84,7 +84,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         totalSize += prevSize;
         startPosition -= prevSize;
 
-        PDEBUG("prevSize = %d, totalSize = %d, string = %s, length of rtnentry->buffptr = %d, startPosition = %d", prevSize, totalSize, rtnentry->buffptr, strlen(rtnentry->buffptr), startPosition);
+        //PDEBUG("prevSize = %d, totalSize = %d, string = %s, length of rtnentry->buffptr = %d, startPosition = %d", prevSize, totalSize, rtnentry->buffptr, strlen(rtnentry->buffptr), startPosition);
 
         if (startPosition <= 0)
         {
@@ -97,12 +97,12 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 strcat(retBuff, rtnentry->buffptr);
             }
         
-            PDEBUG("concatenated string became: %s", retBuff);
+            //PDEBUG("concatenated string became: %s", retBuff);
         }
 
         if (strlen(retBuff) >= count)
         {
-            PDEBUG("Exiting the loop");
+            //PDEBUG("Exiting the loop");
             retBuff[count] = '\0';
             break;
         }
@@ -112,12 +112,12 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 
     if (copy_to_user(buf, retBuff, strlen(retBuff)))
     {
-        PDEBUG("Failed to copy");
+        //PDEBUG("Failed to copy");
 		retval = -EFAULT;
 	}
     else
     {
-        PDEBUG("Returning %d, count %d", strlen(retBuff), count);
+        //PDEBUG("Returning %d, count %d", strlen(retBuff), count);
         retval = strlen(retBuff);
         *f_pos += count;
     }
@@ -129,7 +129,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = -ENOMEM;
-    PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
+    //PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     /**
      * TODO: handle write
      */
@@ -137,7 +137,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     char* newBuff = kmalloc((count + 1) * sizeof(char), GFP_KERNEL);
     if (copy_from_user(newBuff, buf, count))
     {
-        PDEBUG("Couldn't copy buf from user space");
+        //PDEBUG("Couldn't copy buf from user space");
         retval = -EFAULT;
     }
     else
@@ -177,6 +177,72 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
+long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto arg)
+{
+
+	int err = 0, tmp;
+	int retval = 0;
+    
+    struct aesd_dev *dev = filp->private_data;
+	/*
+	 * extract the type and number bitfields, and don't decode
+	 * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
+	 */
+	if (_IOC_TYPE(cmd) != AESD_IOC_MAGIC) return -ENOTTY;
+	if (_IOC_NR(cmd) > AESDCHAR_IOC_MAXNR) return -ENOTTY;
+
+	/*
+	 * the direction is a bitmask, and VERIFY_WRITE catches R/W
+	 * transfers. `Type' is user-oriented, while
+	 * access_ok is kernel-oriented, so the concept of "read" and
+	 * "write" is reversed
+	 */
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		err = !access_ok_wrapper(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+	else if (_IOC_DIR(cmd) & _IOC_WRITE)
+		err =  !access_ok_wrapper(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+	if (err) return -EFAULT;
+
+    int level = 0;
+    size_t offset_rtn = 0;
+    size_t prevSize = 0;
+    size_t totalSize = 0;
+    char* retBuff = kmalloc((count + 1) * sizeof(char), GFP_KERNEL);
+
+	switch(cmd) {
+
+	  case AESDCHAR_IOCSEEKTO:
+		for (level = 0 ; level < arg.write_cmd ; level++)
+        {
+            //PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
+            if (mutex_lock_interruptible(&dev->rw_lock))
+            {
+                return -ERESTARTSYS;
+            }
+            struct aesd_buffer_entry *rtnentry = aesd_circular_buffer_find_entry_offset_for_fpos(&dev->buff, totalSize, &offset_rtn);
+            mutex_unlock(&dev->rw_lock);
+
+            if (rtnentry == NULL)
+            {
+                break;
+            }
+            prevSize = rtnentry->size;
+            totalSize += prevSize;
+            if (level == arg.write - 1)
+            {
+                strcpy(retBuff, rtnentry->buffptr);
+            }
+        }
+        retval = retBuff[arg.write_cmd_offset];
+		break;
+
+	  default:  /* redundant, as cmd was checked against MAXNR */
+		return -ENOTTY;
+	}
+	return retval;
+
+}
+
 loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
 {
 	struct scull_dev *dev = filp->private_data;
@@ -208,6 +274,7 @@ struct file_operations aesd_fops = {
     .llseek =   aesd_llseek,
     .read =     aesd_read,
     .write =    aesd_write,
+    .unlocked_ioctl = aesd_ioctl,
     .open =     aesd_open,
     .release =  aesd_release,
 };
