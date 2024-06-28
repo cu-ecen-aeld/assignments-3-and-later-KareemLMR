@@ -180,6 +180,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 
+    PDEBUG("ioctl cmd = %d, arg = %lld",cmd,arg);
+
 	int err = 0;
 	int retval = 0;
     
@@ -209,14 +211,19 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     size_t totalSize = 0;
     struct aesd_seekto *seek_params;
 
+    PDEBUG("Entering switch");
+
 	switch(cmd) {
 
 	  case AESDCHAR_IOCSEEKTO:
+
+        PDEBUG("Case AESDCHAR_IOCSEEKTO");
 
         if (copy_from_user(&seek_params, (struct aesd_seekto *)arg, sizeof(struct aesd_seekto)))
         {
             return -EFAULT; // Error handling if copy_from_user fails
         }
+        PDEBUG("copied successfully, write_cmd = %d, write_cmd_offset = %d", seek_params->write_cmd, seek_params->write_cmd_offset);
         if (seek_params->write_cmd > 9)
         {
             return -EINVAL;
