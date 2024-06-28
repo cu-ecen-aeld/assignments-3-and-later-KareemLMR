@@ -225,14 +225,14 @@ void* handleClient(void* connData)
         if (write_cmd[1] == ',')
         {
             write_cmd[1] = '\0';
-            strncpy(write_cmd_offset, recvBuff + 21, strlen(recvBuff) - 23);
-            write_cmd_offset[strlen(cmd) - 23] = '\0';
+            strncpy(write_cmd_offset, recvBuff + 21, 2);
+            //write_cmd_offset[strlen(cmd) - 23] = '\0';
         }
         else
         {
             write_cmd[2] = '\0';
-            strncpy(write_cmd_offset, recvBuff + 22, strlen(recvBuff) - 24);
-            write_cmd_offset[strlen(cmd) - 24] = '\0';
+            strncpy(write_cmd_offset, recvBuff + 22, 2);
+            //write_cmd_offset[strlen(cmd) - 24] = '\0';
         }
         printf("write_cmd = %s, write_cmd_offset = %s\n", write_cmd, write_cmd_offset);
         int x, y;
