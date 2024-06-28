@@ -245,6 +245,25 @@ void* handleClient(void* connData)
         printf("seek_params.write_cmd = %d, seek_params.write_cmd_offset = %d\n", seek_params.write_cmd, seek_params.write_cmd_offset);
         int failedToLock = pthread_mutex_lock(&writeMutex);
         long int ret = ioctl(fd, AESDCHAR_IOCSEEKTO, &seek_params);
+
+        char* totalBuff;
+        totalBuff = (char*)malloc(totalBuffSize * sizeof(char));
+
+        int bytesRead = read(fd, totalBuff, totalBuffSize);
+        ////printf("%d bytes read\n", bytesRead);
+
+        int sent = send(threadConnData->connfd, totalBuff, totalBuffSize, 0);
+        ////printf("%d bytes sent\n", sent);
+
+        // Close the file
+        if (close(fd) == -1)
+        {
+            close(threadConnData->connfd);
+            perror("close");
+            exit(EXIT_FAILURE);
+        }
+        free(totalBuff);
+
         int failedToUnlock = pthread_mutex_unlock(&writeMutex);
     }
     else
