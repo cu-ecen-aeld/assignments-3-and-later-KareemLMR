@@ -272,13 +272,13 @@ void* handleClient(void* connData)
         }
 
         // Sync the file to disk
-        if (fsync(fd) == -1)
-        {
-            close(threadConnData->connfd);
-            perror("fsync");
-            close(fd);
-            exit(EXIT_FAILURE);
-        }
+        // if (fsync(fd) == -1)
+        // {
+        //     close(threadConnData->connfd);
+        //     perror("fsync");
+        //     close(fd);
+        //     exit(EXIT_FAILURE);
+        // }
 
         // Set the file offset to the beginning of the file
         if (lseek(fd, 0, SEEK_SET) == -1)
