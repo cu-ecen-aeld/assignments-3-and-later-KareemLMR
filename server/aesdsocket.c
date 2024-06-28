@@ -29,6 +29,17 @@ int totalBuffSize = 0;
 bool sigint = false;
 bool sigterm = false;
 
+struct aesd_seekto {
+    /**
+     * The zero referenced write command to seek into
+     */
+    uint32_t write_cmd;
+    /**
+     * The zero referenced offset within the write
+     */
+    uint32_t write_cmd_offset;
+};
+
 typedef struct handler
 {
     pthread_t thread;
@@ -184,11 +195,6 @@ void* handleClient(void* connData)
     }
     //printf("Loop exited\n");
     //int failedToUnlock = pthread_mutex_unlock(&readMutex);
-
-    int failedToLock = pthread_mutex_lock(&writeMutex);
-
-    totalBuffSize += incremental + 1;
-
     int fd = open(outputFile, O_RDWR|O_APPEND|O_CREAT, 0644);
     if (fd == -1)
     {
@@ -196,63 +202,99 @@ void* handleClient(void* connData)
         perror("open");
         exit(EXIT_FAILURE);
     }
-
-    // Position the file pointer to the end of the file
-    if (lseek(fd, 0, SEEK_END) == -1)
+    char cmd[25];
+    strncpy(cmd, recvBuff, 19);
+    cmd[19] = '\0';
+    if (!strcmp(cmd, "AESDCHAR_IOCSEEKTO:"))
     {
-        close(threadConnData->connfd);
-        perror("lseek");
-        close(fd);
-        exit(EXIT_FAILURE);
+        char write_cmd[3];
+        char write_cmd_offset[3];
+        strncpy(write_cmd, recvBuff + 19, 2);
+        if (write_cmd[1] == ',')
+        {
+            write_cmd[1] = '\0';
+            strncpy(write_cmd_offset, recvBuff + 22, strlen(recvBuff) - 23);
+            write_cmd_offset[strlen(cmd) - 23] = '\0';
+        }
+        else
+        {
+            write_cmd[2] = '\0';
+            strncpy(write_cmd_offset, recvBuff + 23, strlen(recvBuff) - 24);
+            write_cmd_offset[strlen(cmd) - 24] = '\0';
+        }
+        int x, y;
+        x = atoi(write_cmd);
+        y = atoi(write_cmd_offset);
+        struct aesd_seekto seek_params;
+        seek_params.write_cmd = x;
+        seek_params.write_cmd_offset = y;
+        int failedToLock = pthread_mutex_lock(&writeMutex);
+        long int ret = ioctl(fd, 1, (unsigned long)&seek_params);
+        int failedToUnlock = pthread_mutex_unlock(&writeMutex);
     }
-
-    // Write the received data to the file
-    if (write(fd, recvBuff, incremental + 1) == -1)
+    else
     {
-        close(threadConnData->connfd);
-        perror("write");
-        close(fd);
-        exit(EXIT_FAILURE);
+        int failedToLock = pthread_mutex_lock(&writeMutex);
+
+        totalBuffSize += incremental + 1;
+
+        // Position the file pointer to the end of the file
+        if (lseek(fd, 0, SEEK_END) == -1)
+        {
+            close(threadConnData->connfd);
+            perror("lseek");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+
+        // Write the received data to the file
+        if (write(fd, recvBuff, incremental + 1) == -1)
+        {
+            close(threadConnData->connfd);
+            perror("write");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+
+        // Sync the file to disk
+        if (fsync(fd) == -1)
+        {
+            close(threadConnData->connfd);
+            perror("fsync");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+
+        // Set the file offset to the beginning of the file
+        if (lseek(fd, 0, SEEK_SET) == -1)
+        {
+            close(threadConnData->connfd);
+            perror("Error seeking to the beginning of file");
+            exit(EXIT_FAILURE);
+        }
+
+        char* totalBuff;
+        totalBuff = (char*)malloc(totalBuffSize * sizeof(char));
+
+        int bytesRead = read(fd, totalBuff, totalBuffSize);
+        ////printf("%d bytes read\n", bytesRead);
+
+        int sent = send(threadConnData->connfd, totalBuff, totalBuffSize, 0);
+        ////printf("%d bytes sent\n", sent);
+
+        // Close the file
+        if (close(fd) == -1)
+        {
+            close(threadConnData->connfd);
+            perror("close");
+            exit(EXIT_FAILURE);
+        }
+        free(totalBuff);
+        int failedToUnlock = pthread_mutex_unlock(&writeMutex);
     }
-
-    // Sync the file to disk
-    if (fsync(fd) == -1)
-    {
-        close(threadConnData->connfd);
-        perror("fsync");
-        close(fd);
-        exit(EXIT_FAILURE);
-    }
-
-    // Set the file offset to the beginning of the file
-    if (lseek(fd, 0, SEEK_SET) == -1)
-    {
-        close(threadConnData->connfd);
-        perror("Error seeking to the beginning of file");
-        exit(EXIT_FAILURE);
-    }
-
-    char* totalBuff;
-    totalBuff = (char*)malloc(totalBuffSize * sizeof(char));
-
-    int bytesRead = read(fd, totalBuff, totalBuffSize);
-    ////printf("%d bytes read\n", bytesRead);
-
-    int sent = send(threadConnData->connfd, totalBuff, totalBuffSize, 0);
-    ////printf("%d bytes sent\n", sent);
-
-    // Close the file
-    if (close(fd) == -1)
-    {
-        close(threadConnData->connfd);
-        perror("close");
-        exit(EXIT_FAILURE);
-    }
+    
     free(recvBuff);
-    free(totalBuff);
     close(threadConnData->connfd);
-    int failedToUnlock = pthread_mutex_unlock(&writeMutex);
-
     threadConnData->done = true;
 
     return NULL;
