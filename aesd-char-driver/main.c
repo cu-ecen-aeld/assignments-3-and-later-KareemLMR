@@ -177,7 +177,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
-long aesd_ioctl(struct file *filp, unsigned int cmd, void* arg)
+long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
 {
 
     PDEBUG("ioctl cmd = %d, arg = %lld",cmd,arg);
@@ -220,7 +220,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, void* arg)
 
         PDEBUG("Case AESDCHAR_IOCSEEKTO");
 
-        if (copy_from_user(&seek_params, (struct aesd_seekto *)arg, sizeof(struct aesd_seekto)))
+        if (copy_from_user(&seek_params, arg, sizeof(struct aesd_seekto)))
         {
             return -EFAULT; // Error handling if copy_from_user fails
         }
