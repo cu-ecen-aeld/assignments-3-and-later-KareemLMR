@@ -15,6 +15,7 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 #include <time.h>
+#include <sys/ioctl.h>
 
 pthread_mutex_t readMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t writeMutex = PTHREAD_MUTEX_INITIALIZER;
