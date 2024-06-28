@@ -239,13 +239,13 @@ void* handleClient(void* connData)
         totalBuffSize += incremental + 1;
 
         // Position the file pointer to the end of the file
-        if (lseek(fd, 0, SEEK_END) == -1)
-        {
-            close(threadConnData->connfd);
-            perror("lseek");
-            close(fd);
-            exit(EXIT_FAILURE);
-        }
+        // if (lseek(fd, 0, SEEK_END) == -1)
+        // {
+        //     close(threadConnData->connfd);
+        //     perror("lseek");
+        //     close(fd);
+        //     exit(EXIT_FAILURE);
+        // }
 
         // Write the received data to the file
         if (write(fd, recvBuff, incremental + 1) == -1)
