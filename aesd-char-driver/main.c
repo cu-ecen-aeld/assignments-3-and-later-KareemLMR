@@ -220,16 +220,16 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
 
         PDEBUG("Case AESDCHAR_IOCSEEKTO");
 
-        if (copy_from_user(&seek_params, arg, sizeof(struct aesd_seekto)))
-        {
-            return -EFAULT; // Error handling if copy_from_user fails
-        }
-        PDEBUG("copied successfully, write_cmd = %d, write_cmd_offset = %d", seek_params->write_cmd, seek_params->write_cmd_offset);
-        if (seek_params->write_cmd > 9)
+        // if (copy_from_user(&seek_params, arg, sizeof(struct aesd_seekto)))
+        // {
+        //     return -EFAULT; // Error handling if copy_from_user fails
+        // }
+        PDEBUG("copied successfully, write_cmd = %d, write_cmd_offset = %d", arg->write_cmd, arg->write_cmd_offset);
+        if (arg->write_cmd > 9)
         {
             return -EINVAL;
         }
-		for (level = 0 ; level <= seek_params->write_cmd ; level++)
+		for (level = 0 ; level <= arg->write_cmd ; level++)
         {
             //PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
             if (mutex_lock_interruptible(&dev->rw_lock))
@@ -244,13 +244,13 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
                 break;
             }
             prevSize = rtnentry->size;
-            if (level == seek_params->write_cmd)
+            if (level == arg->write_cmd)
             {
-                if (seek_params->write_cmd_offset >= prevSize)
+                if (arg->write_cmd_offset >= prevSize)
                 {
                     return -EINVAL;
                 }
-                filp->f_pos = totalSize + seek_params->write_cmd_offset;
+                filp->f_pos = totalSize + arg->write_cmd_offset;
             }
             totalSize += prevSize;
         }
