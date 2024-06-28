@@ -231,7 +231,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
         }
 		for (level = 0 ; level <= arg->write_cmd ; level++)
         {
-            //PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
+            PDEBUG("string at index = %d is %s ", level, (dev->buff).entry[level].buffptr);
             if (mutex_lock_interruptible(&dev->rw_lock))
             {
                 return -ERESTARTSYS;
