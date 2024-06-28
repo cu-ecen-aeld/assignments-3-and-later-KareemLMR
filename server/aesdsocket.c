@@ -250,7 +250,7 @@ void* handleClient(void* connData)
         totalBuff = (char*)malloc(totalBuffSize * sizeof(char));
 
         int bytesRead = read(fd, totalBuff, totalBuffSize);
-        ////printf("%d bytes read\n", bytesRead);
+        printf("%d bytes read\n", bytesRead);
 
         int sent = send(threadConnData->connfd, totalBuff, totalBuffSize, 0);
         ////printf("%d bytes sent\n", sent);
