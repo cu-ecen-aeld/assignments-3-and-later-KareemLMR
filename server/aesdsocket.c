@@ -244,7 +244,7 @@ void* handleClient(void* connData)
         seek_params.write_cmd_offset = y;
         printf("seek_params.write_cmd = %d, seek_params.write_cmd_offset = %d\n", seek_params.write_cmd, seek_params.write_cmd_offset);
         int failedToLock = pthread_mutex_lock(&writeMutex);
-        long int ret = ioctl(fd, AESDCHAR_IOCSEEKTO, (unsigned long)&seek_params);
+        long int ret = ioctl(fd, AESDCHAR_IOCSEEKTO, &seek_params);
         int failedToUnlock = pthread_mutex_unlock(&writeMutex);
     }
     else
