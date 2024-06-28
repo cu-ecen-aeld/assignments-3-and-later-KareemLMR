@@ -210,6 +210,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     size_t prevSize = 0;
     size_t totalSize = 0;
     struct aesd_seekto *seek_params;
+    void __user *argp = (void __user *)arg;
 
     PDEBUG("Entering switch");
 
@@ -219,7 +220,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
         PDEBUG("Case AESDCHAR_IOCSEEKTO");
 
-        if (copy_from_user(&seek_params, (struct aesd_seekto *)arg, sizeof(struct aesd_seekto)))
+        if (copy_from_user(&seek_params, argp, sizeof(struct aesd_seekto)))
         {
             return -EFAULT; // Error handling if copy_from_user fails
         }
