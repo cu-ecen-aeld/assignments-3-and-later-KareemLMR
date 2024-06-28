@@ -40,6 +40,16 @@ struct aesd_seekto {
     uint32_t write_cmd_offset;
 };
 
+#define AESD_IOC_MAGIC 0x16
+
+// Define a write command from the user point of view, use command number 1
+#define AESDCHAR_IOCSEEKTO _IOWR(AESD_IOC_MAGIC, 1, struct aesd_seekto)
+/**
+ * The maximum number of commands supported, used for bounds checking
+ */
+#define AESDCHAR_IOC_MAXNR 1
+
+
 typedef struct handler
 {
     pthread_t thread;
@@ -229,7 +239,7 @@ void* handleClient(void* connData)
         seek_params.write_cmd = x;
         seek_params.write_cmd_offset = y;
         int failedToLock = pthread_mutex_lock(&writeMutex);
-        long int ret = ioctl(fd, 1, (unsigned long)&seek_params);
+        long int ret = ioctl(fd, AESDCHAR_IOCSEEKTO, (unsigned long)&seek_params);
         int failedToUnlock = pthread_mutex_unlock(&writeMutex);
     }
     else
