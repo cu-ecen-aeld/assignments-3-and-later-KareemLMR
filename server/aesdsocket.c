@@ -252,7 +252,7 @@ void* handleClient(void* connData)
         int bytesRead = read(fd, totalBuff, totalBuffSize);
         printf("%d bytes read = %s\n", bytesRead, totalBuff);
 
-        int sent = send(threadConnData->connfd, totalBuff, totalBuffSize, 0);
+        int sent = send(threadConnData->connfd, totalBuff, bytesRead, 0);
         ////printf("%d bytes sent\n", sent);
 
         // Close the file
