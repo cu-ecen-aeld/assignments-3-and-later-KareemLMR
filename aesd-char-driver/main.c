@@ -233,7 +233,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, struct aesd_seekto *arg)
 
 loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
 {
-	struct scull_dev *dev = filp->private_data;
+	struct aesd_dev *dev = filp->private_data;
 	loff_t newpos;
     size_t offset_rtn = 0;
     size_t prevSize = 0;
@@ -243,7 +243,7 @@ loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
     {
         return -ERESTARTSYS;
     }
-    struct aesd_buffer_entry *rtnentry = aesd_circular_buffer_find_entry_offset_for_fpos(&dev->buff, totalSize, &offset_rtn)
+    struct aesd_buffer_entry *rtnentry = aesd_circular_buffer_find_entry_offset_for_fpos(&dev->buff, totalSize, &offset_rtn);
     mutex_unlock(&dev->rw_lock);
 
 	switch(whence) {
@@ -264,7 +264,7 @@ loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
             {
                 return -ERESTARTSYS;
             }
-            struct aesd_buffer_entry *rtnentry = aesd_circular_buffer_find_entry_offset_for_fpos(&dev->buff, totalSize, &offset_rtn)
+            struct aesd_buffer_entry *rtnentry = aesd_circular_buffer_find_entry_offset_for_fpos(&dev->buff, totalSize, &offset_rtn);
             mutex_unlock(&dev->rw_lock);
         }
 		newpos = totalSize + off;
