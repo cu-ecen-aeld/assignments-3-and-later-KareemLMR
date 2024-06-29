@@ -216,7 +216,6 @@ void* handleClient(void* connData)
     char cmd[25];
     strncpy(cmd, recvBuff, 19);
     cmd[19] = '\0';
-    printf("cmd = %s, recvBuff = %s\n", cmd, recvBuff);
     if (!strcmp(cmd, "AESDCHAR_IOCSEEKTO:"))
     {
         char write_cmd[3];
@@ -234,15 +233,12 @@ void* handleClient(void* connData)
             strncpy(write_cmd_offset, recvBuff + 22, 2);
             //write_cmd_offset[strlen(cmd) - 24] = '\0';
         }
-        printf("write_cmd = %s, write_cmd_offset = %s\n", write_cmd, write_cmd_offset);
         int x, y;
         x = atoi(write_cmd);
         y = atoi(write_cmd_offset);
-        printf("x = %d, y = %d", x, y);
         struct aesd_seekto seek_params;
         seek_params.write_cmd = x;
         seek_params.write_cmd_offset = y;
-        printf("seek_params.write_cmd = %d, seek_params.write_cmd_offset = %d\n", seek_params.write_cmd, seek_params.write_cmd_offset);
         int failedToLock = pthread_mutex_lock(&writeMutex);
         long int ret = ioctl(fd, AESDCHAR_IOCSEEKTO, &seek_params);
 
@@ -250,7 +246,6 @@ void* handleClient(void* connData)
         totalBuff = (char*)malloc(totalBuffSize * sizeof(char));
 
         int bytesRead = read(fd, totalBuff, totalBuffSize);
-        printf("%d bytes read = %s\n", bytesRead, totalBuff);
 
         int sent = send(threadConnData->connfd, totalBuff, bytesRead, 0);
         ////printf("%d bytes sent\n", sent);
